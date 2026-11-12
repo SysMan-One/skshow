@@ -27,7 +27,7 @@
 #	12-NOV-2026	CLD	X-03-00 : Initial version, after vHELP's release.yml and the
 #				deb and install jobs of utility_routines' release.yml.
 #
-#	12-NOV-2026	CLD	STARLET_REF fde1672 = StarLet 1.7.3 (was 7e910f8, 1.7.2), with ci.yml.
+#	12-NOV-2026	RRL	STARLET_REF fde1672 = StarLet 1.7.3 (was 7e910f8, 1.7.2), with ci.yml.
 #--
 
 name: release
