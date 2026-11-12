@@ -1,0 +1,64 @@
+#+++
+#
+#	FACILITY:	SKSHOW - a nano-utility to show TCP/IP socket counters
+#
+#	MODULE:		cmake/uninstall.cmake.in
+#
+#	ABSTRACT:	Take back exactly what "make install" put down, and
+#			nothing else.  The install manifest names every file;
+#			the directories they sit in are left alone, since they
+#			are shared with whatever else is installed under the
+#			same prefix.
+#
+#			DESTDIR is honoured, so a staged installation can be
+#			taken back the same way it was made.
+#
+#	AUTHOR:		Ruslan R. Laishev
+#
+#	CREATION DATE:	 1-AUG-2026
+#
+#---
+
+set (MANIFEST "@CMAKE_BINARY_DIR@/install_manifest.txt")
+
+if ( NOT EXISTS "${MANIFEST}" )
+	message (FATAL_ERROR
+		"No install manifest at ${MANIFEST} - nothing has been installed from this "
+		"build directory, or the manifest has been removed.")
+endif()
+
+file (READ "${MANIFEST}" MANIFEST_TEXT)
+string (REGEX REPLACE "\n" ";" MANIFEST_LIST "${MANIFEST_TEXT}")
+
+set (REMOVED 0)
+set (MISSING 0)
+
+foreach ( F ${MANIFEST_LIST} )
+	string (STRIP "${F}" F)
+
+	if ( NOT F )
+		continue()
+	endif()
+
+	set (TARGET "$ENV{DESTDIR}${F}")
+
+	#  IS_SYMLINK is asked first: EXISTS follows a link and would say no
+	#  for a dangling one, leaving it behind.
+	if ( EXISTS "${TARGET}" OR IS_SYMLINK "${TARGET}" )
+		message (STATUS "Uninstalling: ${TARGET}")
+
+		file (REMOVE "${TARGET}")
+
+		if ( EXISTS "${TARGET}" OR IS_SYMLINK "${TARGET}" )
+			message (FATAL_ERROR "Cannot remove ${TARGET}")
+		endif()
+
+		math (EXPR REMOVED "${REMOVED} + 1")
+	else()
+		message (STATUS "Not there:    ${TARGET}")
+
+		math (EXPR MISSING "${MISSING} + 1")
+	endif()
+endforeach()
+
+message (STATUS "${REMOVED} file(s) removed, ${MISSING} already gone")

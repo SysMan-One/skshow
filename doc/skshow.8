@@ -1,0 +1,318 @@
+.\" Manual page for SKSHOW
+.\"
+.\" FACILITY:  SKSHOW - a nano-utility to show TCP/IP socket counters
+.\" MODULE:    doc/skshow.8
+.\" AUTHOR:    StarLet Squad and Ruslan R. Laishev (AKA: BadAss SysMan)
+.\"
+.TH SKSHOW 8 "11 September 2026" "SKSHOW X-03-00" "System Administration Utilities"
+.
+.SH NAME
+skshow \- display the TCP/IP sockets of the system with their counters
+.
+.SH SYNOPSIS
+.B skshow
+.BR SHOW " [" \fIqualifier\fR ...]
+.br
+.B skshow
+.BR MONITOR " [" \fIqualifier\fR ...]
+.br
+.B skshow
+.BR HELP " [" \fItopic\fR " ...] [" /PAGE " | " /NOPAGE ]
+.
+.SH DESCRIPTION
+.B skshow
+lists the TCP and UDP sockets of the system together with the number of octets
+and segments each has carried, and can select among them by address, port,
+protocol, address family, socket state and the name of the owning process.
+.PP
+The inventory is read from
+.IR /proc/net/tcp ", " /proc/net/tcp6 ", " /proc/net/udp " and " /proc/net/udp6 ,
+which are always present.  The counters are asked of
+.B NETLINK_SOCK_DIAG
+through the
+.B INET_DIAG_INFO
+attribute, which is optional: a kernel built without
+.B CONFIG_INET_DIAG
+merely shows
+.B n/a
+in the counter columns, and everything else is displayed as usual.  UDP has no
+per socket octet counters and its rows carry
+.B n/a
+as well.
+.PP
+A verb and a qualifier may be abbreviated as long as the abbreviation stays
+unambiguous, and a qualifier is introduced by either a
+.B /
+or a
+.BR -- .
+A lone
+.BI - name
+is not a qualifier: the command line service rejects it as an unrecognized
+token, so a selection written that way is refused rather than quietly dropped.
+A qualifier that takes a list accepts either one value or a parenthesised list,
+and a record matches when it matches any element of it.
+.
+.SH VERBS
+.TP
+.B SHOW
+Display one snapshot of the socket table and exit.
+.TP
+.B MONITOR
+Redraw the socket table every
+.B /INTERVAL
+seconds until interrupted, or until
+.B /COUNT
+cycles have been performed.
+.TP
+.BI HELP " topic ..."
+Display the on-line help.  Without a topic, the description of the utility and
+the list of what may be asked for; with one, that topic alone: a verb, a
+qualifier with or without its slash,
+.BR EXAMPLES ", " MESSAGES ,
+or a message of the utility as a subtopic of
+.BR MESSAGES .
+The case of the letters does not matter.  The same text is reached by
+.BR -h ", " --help ", " /HELP " and " /?
+wherever they stand on the command line, and by running the image with no
+argument at all.
+.IP
+The text is read out of the help library of the product,
+.IR skshow.hlb ,
+installed under
+.I share/help
+beside the image, or the Russian
+.I ru/skshow_ru.hlb
+when the locale asks for it; the
+.BR vhelp (1)
+browser reads the same library.  When no library can be found, a shorter
+summary rendered out of the grammar tables of the parser answers instead, so
+the help never depends on anything being installed.
+.IP
+At a terminal the text stops at the end of every page;
+.B /NOPAGE
+lets it run through, which is what a pipe wants.
+.
+.SH QUALIFIERS
+.SS Selection
+.TP
+.BI /LIA= address\fR, \fB/RIA=\fIaddress
+Select by the local, respectively the remote, IP address.  An IPv4 or an IPv6
+literal; the family it belongs to must not contradict
+.BR /FAMILY .
+.TP
+.BI /LPN= port\fR, \fB/RPN=\fIport
+Select by the local, respectively the remote, port number, 1 to 65535.
+.TP
+.BI /PROTO= keyword
+.BR TCP ", " UDP " or " ALL .
+Default
+.BR ALL .
+.TP
+.BI /FAMILY= keyword
+.BR INET ", " INET6 ", " IPV4 ", " IPV6 " or " ALL .
+Default
+.BR ALL .
+.TP
+.BI /STATE= keyword
+One of
+.BR ESTAB ", " SYN_SENT ", " SYN_RECV ", " FIN_WAIT1 ", " FIN_WAIT2 ", "
+.BR TIME_WAIT ", " CLOSE ", " UNCONN ", " CLOSE_WAIT ", " LAST_ACK ", "
+.BR LISTEN ", " CLOSING " or " ALL ,
+or a parenthesised list of them.
+.TP
+.BI /PMASK= mask
+Select by the name of the owning process, or by a parenthesised list of masks.
+The case of the letters is ignored.  A mask without a wildcard is a substring
+and matches anywhere in the name; a mask carrying a
+.BR * ", " % " or " ?
+is a pattern that has to match the whole name, where
+.B *
+stands for any run of characters and
+.BR % " and " ?
+for exactly one.  Quote a mask the shell would expand.  At most eight masks are
+taken.
+.
+.SS Operation
+.TP
+.BR /HIGHLIGHT ", " /NOHIGHLIGHT
+Show in reverse video a row that has moved since the previous refresh: a
+counter, a queue length or the state has changed, or the socket was not there a
+cycle ago.  On by default, and marks nothing on the first refresh, when there is
+no previous state to differ from.  Escape sequences are emitted only to a
+terminal, so a redirected output carries none of this whatever the setting.
+.TP
+.BR /COUNTERS ", " /NOCOUNTERS
+Ask NETLINK for the byte and packet counters.  On by default;
+.B /NOCOUNTERS
+leaves NETLINK alone, which is the cheaper way to look at a system carrying a
+great many sockets.
+.TP
+.BI /INTERVAL= seconds
+The refresh interval of
+.BR MONITOR ,
+default 3.  Zero turns
+.B MONITOR
+into a single snapshot.
+.TP
+.BI /COUNT= number
+The number of refresh cycles of
+.BR MONITOR ,
+default 0 for unlimited.
+.
+.SS Diagnostics
+.TP
+.BR /TRACE ", " /NOTRACE
+Produce an extensible diagnostic output.  Off by default.
+.TP
+.BI /LOGFILE= file
+A file to accept the diagnostic output and the messages of the utility, which
+otherwise go to the standard error.  The socket table is never written to it:
+it goes to the standard output whatever the log destination is.
+.TP
+.BI /LOGSIZE= octets
+Rewind the log file once it has grown past this size.  Default 0, no limit.
+.
+.SS Help
+.TP
+.BR /PAGE ", " /NOPAGE
+Whether the text of
+.B HELP
+stops at the end of every page.  Paged at a terminal by default, never
+elsewhere.
+.
+.SH OUTPUT
+One row per socket: the protocol and family, the local and the remote
+end-point, the socket state, the PID and name of the owning process, the
+receive and transmit queue lengths, and the octets and segments received and
+sent.  A footer names the number of rows displayed and the selection criteria
+in effect.
+.PP
+Escape sequences are emitted only when the standard output is a terminal, so
+the output may be piped or redirected without them.
+.
+.SH DIAGNOSTICS
+A message of the utility is written to the standard error, or to the log file
+when
+.B /LOGFILE
+is given, in the form
+.PP
+.RS
+.nf
+%SKSHOW-E-IVADDR, 10.0.0 is not an IPv4 or an IPv6 address, qualifier /LIA
+.fi
+.RE
+.PP
+where the letter is the severity and the word after it the name of the message.
+.B skshow help messages
+lists them, and
+.B skshow help messages
+.I name
+says what to do about one.  The command line service adds messages of its own
+about a verb, a qualifier or a value it does not accept.
+.
+.SH EXIT STATUS
+.TP
+.B 0
+The command was carried out, or the help was displayed.
+.TP
+.B 1
+The command line was rejected, or the run failed.
+.
+.SH EXAMPLES
+.PP
+Listening TCP sockets:
+.PP
+.RS
+.nf
+skshow show /state=listen /proto=tcp
+.fi
+.RE
+.PP
+Everything a pair of servers is holding on the loopback:
+.PP
+.RS
+.nf
+skshow show /lia=127.0.0.1 /pmask=(nginx,redis)
+.fi
+.RE
+.PP
+Ten refreshes, two seconds apart, without asking NETLINK:
+.PP
+.RS
+.nf
+skshow monitor /interval=2 /count=10 /nocounters
+.fi
+.RE
+.PP
+Watch a busy host, with the moving rows standing out:
+.PP
+.RS
+.nf
+skshow monitor /interval=1
+.fi
+.RE
+.PP
+IPv6 sockets that are established or waiting out their close:
+.PP
+.RS
+.nf
+skshow monitor /family=inet6 /state=(estab,time_wait)
+.fi
+.RE
+.PP
+Every SSH-related socket, by a pattern, whatever the case of the name:
+.PP
+.RS
+.nf
+skshow show '/pmask=SSH*'
+.fi
+.RE
+.PP
+The description of a qualifier:
+.PP
+.RS
+.nf
+skshow help pmask
+.fi
+.RE
+.
+.SH FILES
+.TP
+.IR /proc/net/tcp ", " /proc/net/tcp6 ", " /proc/net/udp ", " /proc/net/udp6
+The socket inventory.
+.TP
+.I /proc/<pid>/fd
+Scanned to bind a socket inode to the process holding it.
+.TP
+.I /proc/<pid>/comm
+The name of that process.
+.TP
+.IR <prefix>/share/help/skshow.hlb ", " <prefix>/share/help/ru/skshow_ru.hlb
+The help libraries, English and Russian.
+.
+.SH ENVIRONMENT
+.TP
+.B SKSHOW_HELPLIB
+Names a help library to read instead of the installed one.
+.TP
+.BR LC_ALL ", " LC_MESSAGES ", " LANG
+The first one set decides the language of the help: a value beginning with
+.B ru
+selects the Russian library.
+.
+.SH NOTES
+The file descriptor directory of a foreign process is readable by the
+superuser only.  Run without that privilege,
+.B skshow
+shows such sockets as
+.B ???
+and says in the footer how many processes it could not read.
+.
+.SH SEE ALSO
+.BR ss (8),
+.BR netstat (8),
+.BR proc (5),
+.BR vhelp (1)
+.
+.SH AUTHOR
+StarLet Squad and Ruslan R. Laishev (AKA: BadAss SysMan).
