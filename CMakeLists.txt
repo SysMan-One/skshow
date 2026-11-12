@@ -50,6 +50,17 @@
 #					- no identifier of this file carries a '$' any more, the house
 #					  rule: the options are SKSHOW_M_STRICT and SKSHOW_M_SANITIZE.
 #
+#		12-NOV-2026	CLD	X-06 : Release packaging and the new form of the identification.
+#					- __IDENT__ may be written X.aa-bb[ECOcc], a dot after the
+#					  letter and two digits in every field (X.03-01ECO02), the form
+#					  of all our projects from 12-NOV-2026; the older X-aa-bb[ECOc]
+#					  is still taken, so X-03-00 builds as it is;
+#					- CPACK makes the Debian package skshow_<aa.bb.cc>_<arch>.deb
+#					  (section net, prefix of the configuration, /usr for a
+#					  release), its version being the one derived from __IDENT__
+#					  and checked against __REV__ above; .github/workflows/release.yml
+#					  builds it for a tag equal to __IDENT__.
+#
 #	USAGE:
 #		Build and install the StarLet package first, and the HELP package if
 #		the on-line help is wanted out of a library:
@@ -113,12 +124,18 @@ endif()
 set (SKSHOW_K_REV "${CMAKE_MATCH_1}")
 
 #
-#	The form is X-aa-bb, optionally followed by ECOcc.
+#	The form is X.aa-bb, optionally followed by ECOcc - a dot after the letter
+#	and exactly two digits in every field, the form of all our projects from
+#	12-NOV-2026.  A module not touched since keeps the older X-aa-bb[ECOc], a
+#	dash after the letter and the digits not counted, and that is taken too.
+#	Both branches put the fields into the same capture groups.
 #
-if ( NOT SKSHOW_K_IDENT MATCHES "^[A-Za-z]-([0-9]+)-([0-9]+)(ECO([0-9]+))?$" )
+if ( SKSHOW_K_IDENT MATCHES "^[A-Za-z]\\.([0-9][0-9])-([0-9][0-9])(ECO([0-9][0-9]))?$" )
+elseif ( SKSHOW_K_IDENT MATCHES "^[A-Za-z]-([0-9]+)-([0-9]+)(ECO([0-9]+))?$" )
+else()
 	message (FATAL_ERROR
 		"__IDENT__ of skshow.c is '${SKSHOW_K_IDENT}', "
-		"which is not of the form X-aa-bb[ECOcc]")
+		"which is of neither form X.aa-bb[ECOcc] nor X-aa-bb[ECOc]")
 endif()
 
 #
@@ -401,3 +418,43 @@ if ( NOT TARGET uninstall )
 		COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/uninstall.cmake
 		COMMENT "Removing the files named by install_manifest.txt")
 endif()
+
+#
+#	Packaging: a Debian package of what 'make install' puts down, made by
+#
+#	    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+#	    cmake --build build && (cd build && cpack -G DEB)
+#
+#	The version is the aa.bb.cc derived from __IDENT__ above, and checked against
+#	__REV__ there, so X-03-00 gives skshow_3.0.0_<arch>.deb.  The package is laid
+#	out under the prefix of the configuration: the image looks for its help
+#	libraries under that prefix (SKSHOW_K_HLBDIR), and a package staged anywhere
+#	else would leave it to its fall-backs.  StarLet and HELP are static archives,
+#	so the image needs nothing beyond the C library, which dpkg-shlibdeps names.
+#
+set (CPACK_PACKAGE_NAME			"skshow")
+set (CPACK_PACKAGE_VENDOR		"StarLet Squad")
+set (CPACK_PACKAGE_CONTACT		"StarLet Squad and Ruslan R. Laishev <polylab240@gmail.com>")
+set (CPACK_PACKAGE_VERSION_MAJOR	"${SKSHOW_K_VMAJOR}")
+set (CPACK_PACKAGE_VERSION_MINOR	"${SKSHOW_K_VMINOR}")
+set (CPACK_PACKAGE_VERSION_PATCH	"${SKSHOW_K_VPATCH}")
+set (CPACK_PACKAGE_VERSION		"${SKSHOW_K_DERIVED}")
+set (CPACK_PACKAGE_DESCRIPTION_SUMMARY	"TCP/IP socket statistic viewer")
+string (CONCAT CPACK_PACKAGE_DESCRIPTION
+	"SKSHOW shows the TCP/IP sockets of the system with their byte and packet counters, "
+	"selected by protocol, state, port, address or process, as one snapshot or refreshed "
+	"until interrupted; the on-line help is answered out of a HELP library.  "
+	"Identification ${SKSHOW_K_IDENT}.")
+set (CPACK_RESOURCE_FILE_LICENSE	"${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+set (CPACK_PACKAGING_INSTALL_PREFIX	"${CMAKE_INSTALL_PREFIX}")
+set (CPACK_STRIP_FILES			ON)
+set (CPACK_VERBATIM_VARIABLES		ON)
+set (CPACK_GENERATOR			"DEB")
+
+set (CPACK_DEBIAN_FILE_NAME		DEB-DEFAULT)
+set (CPACK_DEBIAN_PACKAGE_SECTION	net)
+set (CPACK_DEBIAN_PACKAGE_PRIORITY	optional)
+set (CPACK_DEBIAN_PACKAGE_SHLIBDEPS	ON)
+set (CPACK_DEBIAN_PACKAGE_HOMEPAGE	"https://github.com/SysMan-One/skshow")
+
+include (CPack)

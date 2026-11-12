@@ -1,6 +1,7 @@
 # SKSHOW
 
 [![CI](https://github.com/SysMan-One/skshow/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SysMan-One/skshow/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/SysMan-One/skshow?sort=date)](https://github.com/SysMan-One/skshow/releases/latest)
 
 A nano-utility that shows the TCP/IP sockets of the system with their byte and
 packet counters, and can select among them by a number of criteria.  It reads
@@ -163,10 +164,12 @@ package: a HELP installed from a Debug build traces every library it opens onto
 the standard error of this image.
 
 The identification of the product is written down once, at the head of
-`skshow.c`, in the form `X-aa-bb` with an optional `ECOcc` suffix.  `__REV__` is
-the same value in the UNIX style, `aa.bb.cc`, an absent ECO giving a `cc` of
-zero.  CMake reads both back out of the module, refuses a form other than that
-and refuses a `__REV__` that does not follow from the `__IDENT__`, so the two
+`skshow.c`, in the form `X.aa-bb` with an optional `ECOcc` suffix -- a dot after
+the letter and two digits in every field, the form of all our projects from
+12-NOV-2026.  A module not revised since keeps the older `X-aa-bb[ECOc]` (the
+current `X-03-00`), and the build takes both.  `__REV__` is the same value in
+the UNIX style, `aa.bb.cc`, an absent ECO giving a `cc` of zero.  CMake reads
+both back out of the module, refuses any other form and refuses a `__REV__` that does not follow from the `__IDENT__`, so the two
 cannot drift apart and the package version cannot drift from either.  The help
 libraries are stamped with the same identification.
 
@@ -185,6 +188,40 @@ Options, none of them carrying a `$` -- the house rule for the build files:
 in its spellings, a snapshot with `/NOCOUNTERS`, a `/PMASK` list, and the
 refusals -- an unknown topic, a keyword that is not one, a port out of range, a
 lone `-name`.
+
+## Releases
+
+A tag that is `__IDENT__` of `skshow.c`, exactly and with no `v` (`X-03-00`,
+`X.03-01ECO02`), makes a GitHub Release by `.github/workflows/release.yml`: the
+product is built on Debian 12 for amd64 and arm64, its smoke tests are run, the
+DEB `skshow_<aa.bb.cc>_<arch>.deb` (prefix `/usr`, the version derived from the
+identification, `X-03-00` giving `3.0.0`) is installed, run and purged on
+Debian 12, Debian 13 and Ubuntu 24.04, and the packages, the sources tarball
+`skshow-<ident>.tar.gz` and `SHA256SUMS` are attached.  The same package is made
+by hand with `cpack -G DEB` in a build tree configured with
+`-DCMAKE_INSTALL_PREFIX=/usr`.
+
+Every push to `main` and every pull request is built and tested (x86_64 and
+aarch64, `ctest`) by `.github/workflows/ci.yml`, the badge at the top.
+
+## Checking a download
+
+A release carries `SHA256SUMS.minisig`, a
+[minisign](https://jedisct1.github.io/minisign/) signature of `SHA256SUMS`:
+one signature for every package and the sources tarball.  The public key is
+in `minisign.pub` here (the same key signs the kits of AlphaEmu, HELP and
+StarLet):
+
+    RWQl4NAqFsHKkNoHkS52WSZSk+2kb+e58DWYpoi/jVFa6TqOTAm3Ph14
+
+Put the files you took next to `SHA256SUMS` and `SHA256SUMS.minisig`, then:
+
+    minisign -Vm SHA256SUMS -P RWQl4NAqFsHKkNoHkS52WSZSk+2kb+e58DWYpoi/jVFa6TqOTAm3Ph14
+    sha256sum -c --ignore-missing SHA256SUMS
+
+The first must say `Signature and comment signature verified`, the second
+`OK` for every file.  Anything else - the file is not the one released: do
+not install it.
 
 ## Notes on the implementation
 
