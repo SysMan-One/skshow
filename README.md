@@ -14,11 +14,13 @@ without `CONFIG_INET_DIAG` merely shows `n/a` in the counter columns.
 
 ## Command
 
-    skshow SHOW    [/qualifiers ...]     one snapshot, then exit
-    skshow MONITOR [/qualifiers ...]     refresh until interrupted by a ^C
-    skshow HELP    [<topic> ...]         the on-line help
+    skshow [/qualifiers ...]                one snapshot, then exit
+    skshow /CONTINUOUS [/qualifiers ...]    refresh until interrupted by a ^C
+    skshow HELP [<topic> ...]               the on-line help
 
-A verb and a qualifier may be abbreviated as long as it stays unambiguous, and a
+There is no verb: a bare `skshow` reads the sockets once, prints the table and
+exits.  A qualifier may be abbreviated as long as it stays unambiguous
+(`/CONT` is `/CONTINUOUS`), and a
 qualifier is introduced by either a `/` or a `--`.  A lone `-name` is not a
 qualifier: it is rejected as an unrecognized token, so a selection written that
 way is refused rather than quietly dropped.
@@ -35,16 +37,17 @@ leaves NETLINK alone.  `/NOHIGHLIGHT` turns off the reverse-video marking of the
 rows that have moved since the previous refresh -- a counter, a queue or the
 state has changed, or the socket has just appeared.  Nothing is marked on the
 first refresh, and nothing at all is marked when the output is not a terminal.
-`/INTERVAL` and `/COUNT` govern MONITOR.  `/LOGFILE`, `/LOGSIZE` and `/TRACE`
+`/CONTINUOUS` redraws the table every `/INTERVAL` seconds, up to `/COUNT`
+cycles; `/INTERVAL` and `/COUNT` have effect under `/CONTINUOUS` only.  `/LOGFILE`, `/LOGSIZE` and `/TRACE`
 govern the diagnostics, which go to the log destination and never into the
 table.
 
-    skshow show /state=listen /proto=tcp
-    skshow show /lia=127.0.0.1 /pmask=(nginx,redis)
-    skshow show '/pmask=SSH*'
-    skshow monitor /interval=2 /count=10 /nocounters
-    skshow monitor /family=inet6 /state=(estab,time_wait)
-    skshow monitor /interval=1 /nohighlight
+    skshow /state=listen /proto=tcp
+    skshow /lia=127.0.0.1 /pmask=(nginx,redis)
+    skshow '/pmask=SSH*'
+    skshow /cont /interval=2 /count=10 /nocounters
+    skshow /cont /family=inet6 /state=(estab,time_wait)
+    skshow /cont /interval=1 /nohighlight
 
 Run as root to see the owner of every socket: a `/proc/<pid>/fd` of a foreign
 process is not readable otherwise, and such sockets are shown as `???`.  The
@@ -60,13 +63,13 @@ by `vhelptran` at build time and installed under `share/help` beside the image.
 included:
 
     skshow help                     the description and the list of topics
-    skshow help monitor             a verb
-    skshow help pmask               a qualifier, with or without its slash
+    skshow help continuous          a qualifier, with or without its slash
+    skshow help examples pmask      the examples, then a qualifier
     skshow help messages ivaddr     a message: what it means, what to do
     skshow help /nopage | less      the pager off
 
 `-h`, `--help`, `/HELP` and `/?` reach the same text wherever they stand on the
-command line, and so does an invocation with no argument at all.  Under a
+command line; a bare `skshow` does not display the help, it displays the table.  Under a
 Russian locale -- the first of `LC_ALL`, `LC_MESSAGES`, `LANG` that is set
 begins with `ru` -- the Russian library answers.  `SKSHOW_HELPLIB` names a
 library to read instead of the installed one.  `vhelp skshow` reads the very
@@ -89,8 +92,9 @@ facility, in the OpenVMS form, to the standard error -- or to the log file when
 
 The letter is the severity, the word after it the name of the message, and
 `skshow help messages <name>` says what to do about it.  The command line
-service adds messages of its own about a verb, a qualifier or a value it does
-not accept.  `$LOG` remains the developer's channel: a failed C RTL call is
+service adds messages of its own about a qualifier or a value it does
+not accept; the elder syntax `skshow show ...` and `skshow monitor ...` is
+refused that way.  `$LOG` remains the developer's channel: a failed C RTL call is
 reported there with its `errno`, and `/TRACE` opens the running commentary.
 
 The image exits with a success status when the command was carried out or the
@@ -226,7 +230,7 @@ not install it.
 ## Notes on the implementation
 
 The socket table is composed in one growable buffer and written by a single
-`write(2)`, which is what keeps MONITOR from flickering.  The inventory is
+`write(2)`, which is what keeps `/CONTINUOUS` from flickering.  The inventory is
 matched to its counters through a hash of the socket identity, and the owner of
 a socket through a hash of its inode, so a host with thousands of sockets costs
 one NETLINK dump per family and protocol per cycle rather than one per socket.
@@ -250,8 +254,8 @@ image -- `<image>/../share/help/skshow.hlb` of an installed tree and
 `<image>/skshow.hlb` of a build tree, so both are relocatable -- and last where
 the build was configured to install it.  A word that names no topic is tried
 once more with a slash in front of it, and both ways under the facility topic,
-so `skshow help show pmask` finds the qualifier although it is not a subtopic
-of SHOW.
+so `skshow help examples pmask` finds the qualifier although it is not a
+subtopic of EXAMPLES.
 
 ## License
 

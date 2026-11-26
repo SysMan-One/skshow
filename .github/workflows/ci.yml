@@ -107,5 +107,6 @@ jobs:
 
       - name: Run
         run: |
-          ./build/skshow show /nocounters
+          ./build/skshow /nocounters
+          ./build/skshow /cont /interval=1 /count=2 /nocounters
           ./build/skshow help

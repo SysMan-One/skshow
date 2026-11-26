@@ -61,6 +61,11 @@
 #					  and checked against __REV__ above; .github/workflows/release.yml
 #					  builds it for a tag equal to __IDENT__.
 #
+#		26-NOV-2026	RRL	X-07 : The smoke tests follow skshow.c X.04-00, a command with no
+#					verbs: a snapshot is "skshow [/qualifiers]", the refresh loop
+#					is /CONTINUOUS (two cycles of it are run), and the elder
+#					"skshow show" is checked to be refused.
+#
 #	USAGE:
 #		Build and install the StarLet package first, and the HELP package if
 #		the on-line help is wanted out of a library:
@@ -352,24 +357,29 @@ include (CTest)
 
 if ( BUILD_TESTING )
 	add_test (NAME skshow_help		COMMAND skshow help)
-	add_test (NAME skshow_help_show		COMMAND skshow help show)
-	add_test (NAME skshow_help_dashh	COMMAND skshow -h monitor)
+	add_test (NAME skshow_help_cont		COMMAND skshow help /continuous)
+	add_test (NAME skshow_help_dashh	COMMAND skshow -h cont)
 	add_test (NAME skshow_help_unknown	COMMAND skshow help nosuchtopic)
-	add_test (NAME skshow_show		COMMAND skshow show /nocounters)
-	add_test (NAME skshow_show_pmask	COMMAND skshow show /nocounters "/pmask=(SSHD,init*)")
-	add_test (NAME skshow_bad_state		COMMAND skshow show /state=nosuch)
-	add_test (NAME skshow_bad_port		COMMAND skshow show /lpn=70000)
-	add_test (NAME skshow_bad_token		COMMAND skshow show -lpn=80)
+	add_test (NAME skshow_show		COMMAND skshow /nocounters)
+	add_test (NAME skshow_show_pmask	COMMAND skshow /nocounters "/pmask=(SSHD,init*)")
+	add_test (NAME skshow_cont		COMMAND skshow /cont /interval=1 /count=2 /nocounters)
+	add_test (NAME skshow_bad_state		COMMAND skshow /state=nosuch)
+	add_test (NAME skshow_bad_port		COMMAND skshow /lpn=70000)
+	add_test (NAME skshow_bad_token		COMMAND skshow -lpn=80)
+	add_test (NAME skshow_old_verb		COMMAND skshow show /nocounters)
 
-	set_tests_properties (skshow_help_unknown skshow_bad_state skshow_bad_port skshow_bad_token
+	set_tests_properties (skshow_help_unknown skshow_bad_state skshow_bad_port skshow_bad_token skshow_old_verb
 		PROPERTIES WILL_FAIL TRUE)
 	set_tests_properties (skshow_help	PROPERTIES PASS_REGULAR_EXPRESSION "SKSHOW")
+	set_tests_properties (skshow_help_cont skshow_help_dashh
+		PROPERTIES PASS_REGULAR_EXPRESSION "CONTINUOUS")
 	set_tests_properties (skshow_show	PROPERTIES PASS_REGULAR_EXPRESSION "record\\(s\\) displayed")
 	set_tests_properties (skshow_show_pmask	PROPERTIES PASS_REGULAR_EXPRESSION "PMask: \"SSHD\", \"init\\*\"")
+	set_tests_properties (skshow_cont	PROPERTIES PASS_REGULAR_EXPRESSION "record\\(s\\) displayed.*record\\(s\\) displayed")
 
 	if ( SKSHOW_M_HELPLIB AND HELP_FOUND )
 		add_test (NAME skshow_help_qualifier	COMMAND skshow help pmask)
-		add_test (NAME skshow_help_slashed	COMMAND skshow help show /pmask)
+		add_test (NAME skshow_help_slashed	COMMAND skshow help /pmask)
 		add_test (NAME skshow_help_messages	COMMAND skshow help messages ivaddr)
 
 		set_tests_properties (skshow_help_qualifier skshow_help_slashed
@@ -426,7 +436,7 @@ endif()
 #	    cmake --build build && (cd build && cpack -G DEB)
 #
 #	The version is the aa.bb.cc derived from __IDENT__ above, and checked against
-#	__REV__ there, so X-03-00 gives skshow_3.0.0_<arch>.deb.  The package is laid
+#	__REV__ there, so X.04-00 gives skshow_4.0.0_<arch>.deb.  The package is laid
 #	out under the prefix of the configuration: the image looks for its help
 #	libraries under that prefix (SKSHOW_K_HLBDIR), and a package staged anywhere
 #	else would leave it to its fall-backs.  StarLet and HELP are static archives,

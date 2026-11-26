@@ -5,16 +5,16 @@
 #define	__MODULE__	"SKSHOW"
 /*
 **  The identification of the product, and the ONLY place it is written down.
-**  The form is X-aa-bb, optionally followed by ECOcc for a correction that
-**  carries no new function - X-02-03, X-02-03ECO07.  __REV__ is the same value
+**  The form is X.aa-bb, optionally followed by ECOcc for a correction that
+**  carries no new function - X.02-03, X.02-03ECO07.  __REV__ is the same value
 **  in the UNIX style, aa.bb.cc, an absent ECO giving a cc of zero.
 **
 **  CMAKELISTS.TXT reads both out of this module, refuses a form other than the
 **  above and refuses a __REV__ that does not follow from the __IDENT__, so the
 **  two cannot drift apart and the package version cannot drift from either.
 */
-#define	__IDENT__	"X-03-00"
-#define	__REV__		"3.0.0"
+#define	__IDENT__	"X.04-00"
+#define	__REV__		"4.0.0"
 
 /*
 **++
@@ -34,29 +34,30 @@
 **  CREATION DATE:  18-JUN-2026
 **
 **  USAGE:
-**	$ skshow <verb> [<parameter>] [/qualifier[=value] ...]
+**	$ skshow [/qualifier[=value] ...]
+**	$ skshow help [<topic>...]
 **
-**		SHOW		- display a single snapshot of the socket table and exit
-**		MONITOR		- refresh the socket table until interrupted by a ^C
-**		HELP [<topic>...]	- display the on-line help
+**		no /CONTINUOUS		- display a single snapshot of the socket table and exit
+**		/CONTINUOUS		- refresh the socket table until interrupted by a ^C
+**		help [<topic>...]	- display the on-line help, so do /HELP, -h and --help
 **
-**	A verb and a qualifier may be abbreviated as long as it stays unambiguous, a qualifier
-**	is introduced by either a '/' or a '--'.
+**	A qualifier may be abbreviated as long as it stays unambiguous (/CONT is /CONTINUOUS),
+**	and is introduced by either a '/' or a '--'.
 **
 **	The description of the utility is a help library of the HELP subsystem, doc/skshow.md
 **	(doc/skshow_ru.md in Russian), translated at build time and installed beside the image;
-**	"skshow help <topic>..." answers out of it: a verb, a /qualifier, EXAMPLES, MESSAGES.
+**	"skshow help <topic>..." answers out of it: a /qualifier, EXAMPLES, MESSAGES, ...
 **	When no library is to be found - the HELP package was absent at build time, or the
 **	image travels alone - the summary rendered out of the grammar tables answers instead,
 **	so a help request never depends on anything being installed, see s_quals[] and s_help[].
 **
 **	Examples:
-**		$ skshow show /state=listen /proto=tcp
-**		$ skshow show /lia=127.0.0.1 /pmask=(nginx,redis)
-**		$ skshow show /pmask=ssh*
-**		$ skshow monitor /interval=2 /count=10 /nocounters
-**		$ skshow monitor /nohighlight
-**		$ skshow monitor /family=inet6 /state=(estab,time_wait)
+**		$ skshow /state=listen /proto=tcp
+**		$ skshow /lia=127.0.0.1 /pmask=(nginx,redis)
+**		$ skshow /pmask=ssh*
+**		$ skshow /continuous /interval=2 /count=10 /nocounters
+**		$ skshow /cont /nohighlight
+**		$ skshow /cont /family=inet6 /state=(estab,time_wait)
 **		$ skshow help pmask
 **
 **  MODIFICATION HISTORY:
@@ -175,6 +176,24 @@
 **				- the author line is the house one, and every identifier of the build
 **				  files is spelled without a '$'.
 **
+**	26-NOV-2026	RRL	X.04-00 : The verbs are gone: SKSHOW is a command with qualifiers only.
+**				- "skshow [/qualifiers]" displays a single snapshot and exits, as SHOW
+**				  did; a bare "skshow" does the same now rather than display the help;
+**				- MONITOR is replaced by the /[NO]CONTINUOUS qualifier: the table is
+**				  refreshed until a ^C, every /INTERVAL seconds, for /COUNT cycles.
+**				  /INTERVAL and /COUNT are honoured under /CONTINUOUS only, as they
+**				  were under MONITOR only;
+**				- the grammar keeps a single verb, as the CLI routines want one:
+**				  main() puts its name in front of the command line, the user never
+**				  types it. A "skshow show" or a "skshow monitor" of the old syntax
+**				  is refused with %SKSHOW-E-SYNTAX;
+**				- the help is asked for as before - "skshow help [<topic>]", /HELP,
+**				  -h, --help - and the pre-scan of main() is the only way to it, so
+**				  the HELP verb and its action routine are gone. A topic of the
+**				  built-in summary is a qualifier now, and the AMBIGVERB message
+**				  became AMBIGQUAL;
+**				- the identification is brought to the X.aa-bb form.
+**
 **--
 */
 
@@ -283,7 +302,7 @@ enum	{
 	SKSHOW$K_MSG_TOOMANY,						/* Too many values of a list qualifier	*/
 	SKSHOW$K_MSG_NOPRIV,						/* Not the superuser			*/
 	SKSHOW$K_MSG_NOTOPIC,						/* No documentation on a topic		*/
-	SKSHOW$K_MSG_AMBIGVERB,						/* An ambiguous verb name		*/
+	SKSHOW$K_MSG_AMBIGQUAL,						/* An ambiguous qualifier name		*/
 	SKSHOW$K_MSG_SYNTAX,						/* The command line was rejected	*/
 
 	SKSHOW$K_MSG_MAX						/* End-Of-List				*/
@@ -298,7 +317,7 @@ enum	{
 #define	SKSHOW$_TOOMANY		$SKSHOWSTS(SKSHOW$K_MSG_TOOMANY,	STS$K_WARN)
 #define	SKSHOW$_NOPRIV		$SKSHOWSTS(SKSHOW$K_MSG_NOPRIV,		STS$K_WARN)
 #define	SKSHOW$_NOTOPIC		$SKSHOWSTS(SKSHOW$K_MSG_NOTOPIC,	STS$K_ERROR)
-#define	SKSHOW$_AMBIGVERB	$SKSHOWSTS(SKSHOW$K_MSG_AMBIGVERB,	STS$K_ERROR)
+#define	SKSHOW$_AMBIGQUAL	$SKSHOWSTS(SKSHOW$K_MSG_AMBIGQUAL,	STS$K_ERROR)
 #define	SKSHOW$_SYNTAX		$SKSHOWSTS(SKSHOW$K_MSG_SYNTAX,		STS$K_ERROR)
 
 /*
@@ -321,7 +340,7 @@ static	EMSG_RECORD	s_msgtab [] = {
 	$SKSHOWREC(SKSHOW$_TOOMANY,	"TOOMANY, too many !AZ, only the first !UL are used"),
 	$SKSHOWREC(SKSHOW$_NOPRIV,	"NOPRIV, running as UID !UL, an owner of a foreign socket is shown as ???"),
 	$SKSHOWREC(SKSHOW$_NOTOPIC,	"NOTOPIC, sorry, no documentation on !AZ"),
-	$SKSHOWREC(SKSHOW$_AMBIGVERB,	"AMBIGVERB, !AZ is an ambiguous verb name"),
+	$SKSHOWREC(SKSHOW$_AMBIGQUAL,	"AMBIGQUAL, !AZ is an ambiguous qualifier name"),
 	$SKSHOWREC(SKSHOW$_SYNTAX,	"SYNTAX, type \"skshow help\" for a command summary")
 	};
 
@@ -473,6 +492,7 @@ int	g_trace = 0,							/* /TRACE				*/
 	g_logsize = 0,							/* /LOGSIZE				*/
 	g_interval = 3,							/* /INTERVAL, seconds			*/
 	g_cycles = 0,							/* /COUNT, 0 - unlimited		*/
+	g_continuous = 0,						/* /CONTINUOUS, refresh until a ^C	*/
 	g_counters = 1,							/* /COUNTERS, /NOCOUNTERS clears it	*/
 	g_highlight = 1							/* /HIGHLIGHT, /NOHIGHLIGHT clears it	*/
 	;
@@ -565,6 +585,7 @@ enum	{
 	SKSHOW$K_Q_PMASK,
 	SKSHOW$K_Q_COUNTERS,
 	SKSHOW$K_Q_HIGHLIGHT,
+	SKSHOW$K_Q_CONTINUOUS,
 	SKSHOW$K_Q_INTERVAL,
 	SKSHOW$K_Q_COUNT,
 	SKSHOW$K_Q_TRACE,
@@ -575,9 +596,8 @@ enum	{
 	};
 
 /*
- * A single qualifier table shared by the SHOW and the MONITOR verbs - the two differ by the
- * action argument only, see s_verbs[] below. /INTERVAL and /COUNT are accepted by the both
- * but are honoured in the MONITOR mode only.
+ * The qualifiers of the command, see s_verbs[] below. /INTERVAL and /COUNT are accepted always
+ * but are honoured under /CONTINUOUS only: a single snapshot has neither an interval nor cycles.
  *
  * NOTE: /LIA and /RIA are declared as a string and not as a CLI$K_IPV4 / CLI$K_IPV6 on purpose -
  * the built in check accepts one family only, while both of them have to be taken here. The
@@ -602,6 +622,8 @@ static	CLI_PQDESC	s_quals [SKSHOW$K_Q_MAX + 1] = {
 				    .flag = CLI$M_NEGATABLE },
 	[SKSHOW$K_Q_HIGHLIGHT]	= { .name = {$ASCINI("HIGHLIGHT")},.type = CLI$K_OPT,
 				    .flag = CLI$M_NEGATABLE },
+	[SKSHOW$K_Q_CONTINUOUS]	= { .name = {$ASCINI("CONTINUOUS")},.type = CLI$K_OPT,
+				    .flag = CLI$M_NEGATABLE },
 
 	[SKSHOW$K_Q_INTERVAL]	= { .name = {$ASCINI("INTERVAL")},.type = CLI$K_NUM,
 				    .defval = {$ASCINI("3")} },
@@ -619,66 +641,39 @@ static	CLI_PQDESC	s_quals [SKSHOW$K_Q_MAX + 1] = {
 
 _Static_assert($ARRSZ(s_quals) == (SKSHOW$K_Q_MAX + 1), "s_quals[] and the SKSHOW$K_Q_* enum have diverged");
 
-/*
- * P1 of the HELP verb: an optional name of a verb to be detailed.
- */
-static	CLI_PQDESC	s_parm_help [] = {
-	{ .name = {$ASCINI("TOPIC")}, .type = CLI$K_QSTRING, .pn = CLI$K_P1 },
-	$CLI_EOL
-	};
-
-/*
- * A mode of operation, is carried by the verb's action argument.
- */
-enum	{
-	SKSHOW$K_MODE_ONCE = 1,						/* A single snapshot			*/
-	SKSHOW$K_MODE_LOOP						/* Refresh until interrupted		*/
-	};
-
 static	int	s_act_display	(CLI_CTX *a_clictx, void *a_arg);
-static	int	s_act_help	(CLI_CTX *a_clictx, void *a_arg);
 
 /*
  * The command grammar:
  *
- *	SKSHOW	SHOW	[/qualifiers ...]
- *		MONITOR	[/qualifiers ...]
- *		HELP	[<verb>]
+ *	SKSHOW	[/qualifiers ...]
+ *
+ * The CLI routines parse a verb and what follows it, and the command has no verb of its own,
+ * so the grammar carries a single one, named after the facility: main() puts that name in
+ * front of the command line, the user never types it. The command takes no parameter, so a
+ * word left on the command line - a "show" or a "monitor" of the elder syntax - is refused by
+ * the parser. A help request never reaches here, main() answers it from its own pre-scan.
  */
+#define	SKSHOW$K_VERB		"SKSHOW"
+
 static	CLI_VERB	s_verbs [] = {
-	{ .name = {$ASCINI("SHOW")},	.quals = s_quals,	.act_rtn = s_act_display,
-					.act_arg = (void *) (intptr_t) SKSHOW$K_MODE_ONCE },
-	{ .name = {$ASCINI("MONITOR")},	.quals = s_quals,	.act_rtn = s_act_display,
-					.act_arg = (void *) (intptr_t) SKSHOW$K_MODE_LOOP },
-	/*
-	 * NOTE: in the normal course main() answers a help request from its own pre-scan and
-	 * this action routine is never reached - it is the fallback for a command line that
-	 * the pre-scan lets through, and it keeps the verb a first class member of the
-	 * grammar, which is what the renderer walks to build the verb listing.
-	 */
-	{ .name = {$ASCINI("HELP")},	.params = s_parm_help,	.act_rtn = s_act_help },
+	{ .name = {$ASCINI(SKSHOW$K_VERB)},	.quals = s_quals,	.act_rtn = s_act_display },
 	$CLI_EOL
 	};
 
 /*
- * A one line description of a verb or of a qualifier, keyed by an address of its descriptor.
+ * A one line description of a qualifier, keyed by an address of its descriptor.
  * The help renderer walks the grammar tables above and pulls a text from here, so a table
  * and its help cannot describe a different set of qualifiers.
  */
 typedef	struct help_ent_t
 {
-	const void	*item;						/* CLI_VERB * or CLI_PQDESC *		*/
+	const void	*item;						/* CLI_PQDESC *				*/
 	const char	*hint;						/* A value placeholder override, or NULL	*/
 	const char	*text;						/* A one line description		*/
 } SKSHOW$HELP_ENT;
 
 static const SKSHOW$HELP_ENT	s_help [] = {
-	{ &s_verbs[0],				NULL,		"Display a single snapshot of the socket table and exit" },
-	{ &s_verbs[1],				NULL,		"Refresh the socket table until interrupted by a ^C" },
-	{ &s_verbs[2],				NULL,		"Display the on-line help; HELP <topic> details a verb or a qualifier" },
-
-	{ &s_parm_help[0],			NULL,		"A topic: a verb, a /qualifier, EXAMPLES or MESSAGES" },
-
 	{ &s_quals[SKSHOW$K_Q_LIA],		"=<address>",	"Select by a local IP address, an IPv4 or an IPv6 literal" },
 	{ &s_quals[SKSHOW$K_Q_RIA],		"=<address>",	"Select by a remote IP address, an IPv4 or an IPv6 literal" },
 	{ &s_quals[SKSHOW$K_Q_LPN],		"=<port>",	"Select by a local port number, 1 ... 65535" },
@@ -689,8 +684,9 @@ static const SKSHOW$HELP_ENT	s_help [] = {
 	{ &s_quals[SKSHOW$K_Q_PMASK],		"=<mask>",	"Select by the owner's name, case ignored: a substring, or a *,%,? pattern" },
 	{ &s_quals[SKSHOW$K_Q_COUNTERS],	NULL,		"Query NETLINK for the byte/packet counters, on by default" },
 	{ &s_quals[SKSHOW$K_Q_HIGHLIGHT],	NULL,		"Show a row that has moved since the last refresh in reverse video" },
-	{ &s_quals[SKSHOW$K_Q_INTERVAL],	"=<seconds>",	"A refresh interval, MONITOR only" },
-	{ &s_quals[SKSHOW$K_Q_COUNT],		NULL,		"A number of the refresh cycles, 0 - unlimited, MONITOR only" },
+	{ &s_quals[SKSHOW$K_Q_CONTINUOUS],	NULL,		"Refresh the table until a ^C; without it - one snapshot and exit" },
+	{ &s_quals[SKSHOW$K_Q_INTERVAL],	"=<seconds>",	"A refresh interval, /CONTINUOUS only" },
+	{ &s_quals[SKSHOW$K_Q_COUNT],		NULL,		"A number of the refresh cycles, 0 - unlimited, /CONTINUOUS only" },
 	{ &s_quals[SKSHOW$K_Q_TRACE],		NULL,		"Produce an extensible diagnostic output, off by default" },
 	{ &s_quals[SKSHOW$K_Q_LOGFILE],		NULL,		"A file to accept the diagnostic output, not the table" },
 	{ &s_quals[SKSHOW$K_Q_LOGSIZE],		"=<octets>",	"Rewind the log file once it grows past this size" },
@@ -1304,7 +1300,7 @@ unsigned	l_idx;
 /*
  *   DESCRIPTION: Drop from the previous-cycle map every socket that was not seen during
  *		the refresh just finished, so that the map holds the live sockets only
- *		and a long MONITOR run does not accumulate the closed ones.
+ *		and a long /CONTINUOUS run does not accumulate the closed ones.
  *
  *   INPUTS:
  *	NONE
@@ -2694,7 +2690,8 @@ int			l_ru = (1 & s_hlb_lang_ru());
  *		carrying blanks is made of - is looked up under the current topic as it has been
  *		given; failing that, with a slash in front of it, so that a qualifier is asked
  *		for as "pmask" as well as "/pmask"; failing that, both ways under the root, so
- *		that "help show pmask" finds the qualifier although it is not a subtopic of SHOW.
+ *		that "help examples pmask" finds the qualifier although it is not a subtopic of
+ *		EXAMPLES.
  *		A word spelled in the GNU way, "--pmask", is the slashed one.
  *
  *   INPUTS:
@@ -2867,7 +2864,7 @@ int		l_root, l_parent, l_index, l_used, l_pos = 0;
 
 	/*
 	 * Everything this library documents hangs below the one key of level one, so the descent
-	 * starts there rather than at the root: the reader asks for a verb, not for "skshow show".
+	 * starts there rather than at the root: the reader asks for "pmask", not for "skshow pmask".
 	 */
 	if ( !(1 & hlb$lookup(l_lib, -1, (unsigned) sizeof(SKSHOW$K_HLBTOP) - 1, SKSHOW$K_HLBTOP, &l_root)) )
 		{
@@ -2949,10 +2946,10 @@ static	int	s_hlb_help	(
 
 
 /*
- *   DESCRIPTION: Look up the on-line help text of a verb or of a qualifier descriptor.
+ *   DESCRIPTION: Look up the on-line help text of a qualifier descriptor.
  *
  *   INPUTS:
- *	a_item:		An address of a CLI_VERB or of a CLI_PQDESC to be described
+ *	a_item:		An address of a CLI_PQDESC to be described
  *
  *   OUTPUTS:
  *	a_text:		An address of a static, read-only text; an empty string if nothing is known
@@ -3116,65 +3113,72 @@ int		l_first = 1;
 
 
 /*
- *   DESCRIPTION: Put a full description of a single verb - its parameters and its qualifiers -
- *		into the output accumulator.
+ *   DESCRIPTION: Find a qualifier of the command by its name as a help topic gives it: with a
+ *		slash or a "--" in front of it or without, with a value after a '=' or without,
+ *		abbreviated as long as it stays unambiguous - an exact name always wins.
  *
  *   INPUTS:
- *	a_verb:		A verb descriptor
+ *	a_topic:	A topic, ASCIC
  *
  *   OUTPUTS:
- *	NONE
+ *	a_pq:		A qualifier descriptor
  *
  *   RETURNS:
- *	STS$K_SUCCESS
- *	STS$K_ERROR	- out of memory
+ *	STS$K_SUCCESS	- the qualifier has been found
+ *	STS$K_ERROR	- no qualifier of this name, or an ambiguous abbreviation; signalled
  */
-static	int	s_help_verb	(
-			CLI_VERB	*a_verb
-			)
+static	int	s_help_findqual	(
+			ASC		*a_topic,
+			CLI_PQDESC	**a_pq
+				)
 {
-const char	*l_text;
+const char	*l_name = $ASCPTR(a_topic), *l_eq;
+size_t		l_len = $ASCLEN(a_topic);
+CLI_PQDESC	*l_sel = NULL;
 
-	s_help_text(a_verb, &l_text, NULL);
+	if ( l_len && (l_name[0] == '/') )				/* /name			*/
+		l_name++, l_len--;
+	else if ( (l_len > 1) && (l_name[0] == '-') && (l_name[1] == '-') )	/* --name		*/
+		l_name += 2, l_len -= 2;
 
-	if ( !(1 & s_obuf_addf(&s_obuf, "\n  %.*s - %s\n", $ASC(&a_verb->name), l_text)) )
-		return	STS$K_ERROR;
+	if ( (l_eq = memchr(l_name, '=', l_len)) )			/* /name=value			*/
+		l_len = (size_t) (l_eq - l_name);
 
-	if ( a_verb->params && a_verb->params->pn )
+	for (CLI_PQDESC *l_pq = s_quals; l_len && $ASCLEN(&l_pq->name); l_pq++)
 		{
-		if ( !(1 & s_obuf_addf(&s_obuf, "\n    Parameters:\n")) )
-			return	STS$K_ERROR;
+		if ( l_len > $ASCLEN(&l_pq->name) )
+			continue;
 
-		for (CLI_PQDESC *l_pq = a_verb->params; l_pq->pn && $ASCLEN(&l_pq->name); l_pq++)
+		if ( strncasecmp(l_name, $ASCPTR(&l_pq->name), l_len) )
+			continue;
+
+		if ( l_len == $ASCLEN(&l_pq->name) )			/* An exact name wins		*/
 			{
-			s_help_text(l_pq, &l_text, NULL);
-
-			if ( !(1 & s_obuf_addf(&s_obuf, "      P%-33d %s%s\n", l_pq->pn, l_text,
-					(l_pq->flag & CLI$M_REQUIRED) ? " [required]" : " [optional]")) )
-				return	STS$K_ERROR;
+			l_sel = l_pq;
+			break;
 			}
+
+		if ( l_sel )
+			return	$SKSHOWMSG(SKSHOW$_AMBIGQUAL, $ASCPTR(a_topic));
+
+		l_sel = l_pq;
 		}
 
-	if ( a_verb->quals && $ASCLEN(&a_verb->quals->name) )
-		{
-		if ( !(1 & s_obuf_addf(&s_obuf, "\n    Qualifiers:\n")) )
-			return	STS$K_ERROR;
+	if ( !l_sel )
+		return	$SKSHOWMSG(SKSHOW$_NOTOPIC, $ASCPTR(a_topic));
 
-		for (CLI_PQDESC *l_pq = a_verb->quals; $ASCLEN(&l_pq->name); l_pq++)
-			if ( !(1 & s_help_qual(l_pq)) )
-				return	STS$K_ERROR;
-		}
+	*a_pq = l_sel;
 
 	return	STS$K_SUCCESS;
 }
 
 
 /*
- *   DESCRIPTION: Render the on-line help - either an overview of the whole grammar, or a
- *		detailed description of a single verb - and write it out.
+ *   DESCRIPTION: Render the on-line help - either an overview of the command, or a description
+ *		of a single qualifier - and write it out.
  *
  *   INPUTS:
- *	a_topic:	A name of the verb of interest, ASCIC; NULL or empty for an overview
+ *	a_topic:	A name of the qualifier of interest, ASCIC; NULL or empty for an overview
  *
  *   OUTPUTS:
  *	NONE
@@ -3187,73 +3191,42 @@ static	int	s_help_show	(
 			ASC	*a_topic
 			)
 {
-CLI_VERB	*l_verb, *l_sel = NULL;
-const char	*l_text;
+CLI_PQDESC	*l_sel = NULL;
 
 	if ( !(1 & s_obuf_reset(&s_obuf)) )
 		return	STS$K_ERROR;
 
-	/*
-	 * A topic given: find the verb by an exact name or by an unambiguous abbreviation.
-	 */
-	if ( a_topic && $ASCLEN(a_topic) )
-		{
-		for (l_verb = s_verbs; $ASCLEN(&l_verb->name); l_verb++)
-			{
-			if ( $ASCLEN(a_topic) > $ASCLEN(&l_verb->name) )
-				continue;
-
-			if ( strncasecmp($ASCPTR(a_topic), $ASCPTR(&l_verb->name), $ASCLEN(a_topic)) )
-				continue;
-
-			if ( $ASCLEN(a_topic) == $ASCLEN(&l_verb->name) )	/* an exact name wins	*/
-				{
-				l_sel = l_verb;
-				break;
-				}
-
-			if ( l_sel )
-				return	$SKSHOWMSG(SKSHOW$_AMBIGVERB, $ASCPTR(a_topic));
-
-			l_sel = l_verb;
-			}
-
-		if ( !l_sel )
-			return	$SKSHOWMSG(SKSHOW$_NOTOPIC, $ASCPTR(a_topic));
-		}
+	if ( a_topic && $ASCLEN(a_topic) && !(1 & s_help_findqual(a_topic, &l_sel)) )
+		return	STS$K_ERROR;
 
 	if ( !(1 & s_obuf_addf(&s_obuf,
 			"\n  " __MODULE__ " " __IDENT__ " - a TCP/IP socket statistic viewer\n"
-			"\n  Usage:  skshow <verb> [<parameter>] [/qualifier[=value] ...]\n"
-			"\n          A verb and a qualifier may be abbreviated as long as it stays unambiguous;\n"
-			"          a qualifier is introduced by either a '/' or a '--'.\n")) )
+			"\n  Usage:  skshow [/qualifier[=value] ...]\n"
+			"          skshow help [<topic>]\n"
+			"\n          Without /CONTINUOUS a single snapshot of the socket table is displayed;\n"
+			"          a qualifier may be abbreviated as long as it stays unambiguous,\n"
+			"          and is introduced by either a '/' or a '--'.\n"
+			"\n  Qualifiers:\n")) )
 		return	STS$K_ERROR;
 
 	if ( l_sel )
 		{
-		if ( !(1 & s_help_verb(l_sel)) )
+		if ( !(1 & s_help_qual(l_sel)) )
 			return	STS$K_ERROR;
 		}
 	else	{
-		if ( !(1 & s_obuf_addf(&s_obuf, "\n  Verbs:\n")) )
-			return	STS$K_ERROR;
-
-		for (l_verb = s_verbs; $ASCLEN(&l_verb->name); l_verb++)
-			{
-			s_help_text(l_verb, &l_text, NULL);
-
-			if ( !(1 & s_obuf_addf(&s_obuf, "      %-12.*s %s\n", $ASC(&l_verb->name), l_text)) )
+		for (CLI_PQDESC *l_pq = s_quals; $ASCLEN(&l_pq->name); l_pq++)
+			if ( !(1 & s_help_qual(l_pq)) )
 				return	STS$K_ERROR;
-			}
 
 		if ( !(1 & s_obuf_addf(&s_obuf,
-				"\n  Type \"skshow help <verb>\" for the parameters and the qualifiers of a verb.\n"
+				"\n  Type \"skshow help /<qualifier>\" for a single qualifier.\n"
 				"\n  Examples:\n"
-				"      skshow show /state=listen /proto=tcp\n"
-				"      skshow show /lia=127.0.0.1 /pmask=(nginx,redis)\n"
-				"      skshow show /pmask=ssh*\n"
-				"      skshow monitor /interval=2 /count=10 /nocounters\n"
-				"      skshow monitor /family=inet6 /state=(estab,time_wait)\n")) )
+				"      skshow /state=listen /proto=tcp\n"
+				"      skshow /lia=127.0.0.1 /pmask=(nginx,redis)\n"
+				"      skshow /pmask=ssh*\n"
+				"      skshow /continuous /interval=2 /count=10 /nocounters\n"
+				"      skshow /cont /family=inet6 /state=(estab,time_wait)\n")) )
 			return	STS$K_ERROR;
 		}
 
@@ -3484,7 +3457,7 @@ unsigned	l_state = 0;
  *		whole set for the footer line.
  *
  *   INPUTS:
- *	a_clictx:	A parse context of the SHOW or of the MONITOR verb
+ *	a_clictx:	A parse context of the command
  *
  *   OUTPUTS:
  *	The g_* and the s_* selection globals are filled in
@@ -3509,10 +3482,11 @@ int			l_opts, l_len = 0;
 	l_opts = a_clictx->opts;
 	a_clictx->opts &= ~CLI$M_OPSIGNAL;
 
-	/* /TRACE, /COUNTERS - valueless, negatable */
+	/* /TRACE, /COUNTERS, /HIGHLIGHT, /CONTINUOUS - valueless, negatable */
 	s_get_flag(a_clictx, &s_quals[SKSHOW$K_Q_TRACE], 0, &g_trace);
 	s_get_flag(a_clictx, &s_quals[SKSHOW$K_Q_COUNTERS], 1, &g_counters);
 	s_get_flag(a_clictx, &s_quals[SKSHOW$K_Q_HIGHLIGHT], 1, &g_highlight);
+	s_get_flag(a_clictx, &s_quals[SKSHOW$K_Q_CONTINUOUS], 0, &g_continuous);
 
 	/* /LOGFILE, /LOGSIZE */
 	s_get_asc(a_clictx, &s_quals[SKSHOW$K_Q_LOGFILE], &g_logfspec);
@@ -3701,12 +3675,12 @@ fail:
 
 
 /*
- *   DESCRIPTION: An action routine of the SHOW and of the MONITOR verbs: set up the criteria,
- *		establish the signal handlers and run the refresh loop.
+ *   DESCRIPTION: An action routine of the command: set up the criteria, establish the signal
+ *		handlers and display a single snapshot, or run the refresh loop under /CONTINUOUS.
  *
  *   INPUTS:
  *	a_clictx:	A parse context
- *	a_arg:		A mode of operation, SKSHOW$K_MODE_ONCE or SKSHOW$K_MODE_LOOP
+ *	a_arg:		Unused
  *
  *   OUTPUTS:
  *	NONE
@@ -3720,13 +3694,15 @@ static	int	s_act_display	(
 			void	*a_arg
 			)
 {
-int	l_mode = (int) (intptr_t) a_arg, l_cycle = 0, l_count = 0, l_rest;
+int	l_cycle = 0, l_count = 0, l_rest;
+
+	(void) a_arg;
 
 	if ( !(1 & s_setup_filters(a_clictx)) )
 		return	STS$K_ERROR;
 
 	/* A single snapshot: neither an interval nor a cycle count applies */
-	if ( l_mode == SKSHOW$K_MODE_ONCE )
+	if ( !g_continuous )
 		{
 		g_interval = 0;
 		g_cycles = 1;
@@ -3777,43 +3753,6 @@ int	l_mode = (int) (intptr_t) a_arg, l_cycle = 0, l_count = 0, l_rest;
 
 
 /*
- *   DESCRIPTION: An action routine of the HELP verb.
- *
- *   INPUTS:
- *	a_clictx:	A parse context
- *	a_arg:		Unused
- *
- *   OUTPUTS:
- *	NONE
- *
- *   RETURNS:
- *	STS$K_SUCCESS
- *	STS$K_ERROR	- an unknown topic
- */
-static	int	s_act_help	(
-			CLI_CTX	*a_clictx,
-			void	*a_arg
-			)
-{
-ASC	l_topic = {0};
-char	*l_words [1] = {(char *) $ASCPTR(&l_topic)};
-int	l_opts;
-
-	(void) a_arg;
-
-	/* P1 is optional, its absence must not be signalled as an error */
-	l_opts = a_clictx->opts;
-	a_clictx->opts &= ~CLI$M_OPSIGNAL;
-
-	s_get_asc(a_clictx, &s_parm_help[0], &l_topic);
-
-	a_clictx->opts = l_opts;
-
-	return	s_help_any($ASCLEN(&l_topic) ? 1 : 0, l_words, -1, &l_topic);
-}
-
-
-/*
  *   DESCRIPTION: Test a single command line token for a help request. Every spelling the
  *		CLI_ROUTINES itself recognizes is covered here, plus the Unix style forms -
  *		the local renderer has to pre-empt the built in one for every one of them,
@@ -3853,10 +3792,10 @@ const char	*l_p = a_arg;
 
 /*
  *   DESCRIPTION: Scan a whole command line for a help request and pick up the topic for it.
- *		Every token but the help spelling itself names the topic - a verb, a qualifier
- *		written with its slash, a word of a key that carries blanks - so a
- *		"skshow help show", a "skshow show /help", a "skshow help pmask" and a
- *		"skshow -h /pmask" are all understood. /PAGE and /NOPAGE govern the pager of
+ *		Every token but the help spelling itself names the topic - a qualifier written
+ *		with its slash or without, a word of a key that carries blanks - so a
+ *		"skshow help pmask", a "skshow /pmask /help" and a "skshow -h /pmask" are all
+ *		understood. /PAGE and /NOPAGE govern the pager of
  *		the topic and are not words of it.
  *
  *   INPUTS:
@@ -3901,7 +3840,7 @@ int		l_hit = 0;
 		return	STS$K_WARN;
 
 	/*
-	 * Only the first help spelling is consumed, so a "help help" describes the HELP verb rather
+	 * Only the first help spelling is consumed, so a "help help" describes the HELP topic rather
 	 * than falling back to the overview.
 	 */
 	l_hit = 0;
@@ -3964,7 +3903,7 @@ int	main	(
 {
 CLI_CTX	*l_clictx = NULL;
 ASC	l_topic = {0};
-char	*l_words [SKSHOW$K_MAXWORDS];
+char	*l_words [SKSHOW$K_MAXWORDS], *l_argv [argc + 1];
 int	l_opts = CLI$M_OPSIGNAL, l_status, l_wordcnt = 0, l_page = -1;
 
 	/*
@@ -3988,7 +3927,7 @@ int	l_opts = CLI$M_OPSIGNAL, l_status, l_wordcnt = 0, l_page = -1;
 	s_istty = isatty(s_ttyfd);
 
 	/*
-	 * A bare invocation, or a help request in any of its spellings. The scan MUST happen
+	 * A help request in any of its spellings. The scan MUST happen
 	 * before the __cli$parse(): the CLI_ROUTINES X.00-09 answers a help token on its own
 	 * and would otherwise print its own, far terser text instead of this one.
 	 *
@@ -3997,15 +3936,6 @@ int	l_opts = CLI$M_OPSIGNAL, l_status, l_wordcnt = 0, l_page = -1;
 	for (int i = 1; i < argc; i++)
 		if ( !strcasecmp(argv[i], "/trace") || !strcasecmp(argv[i], "--trace") )
 			g_trace = 1;
-
-	if ( 2 > argc )
-		{
-		l_status = s_help_any(0, NULL, -1, NULL);
-
-		free(s_obuf.buf);
-
-		return	(1 & l_status) ? EXIT_SUCCESS : EXIT_FAILURE;
-		}
 
 	if ( 1 & s_is_help_request(argc, argv, SKSHOW$K_MAXWORDS, &l_wordcnt, l_words, &l_page, &l_topic) )
 		{
@@ -4026,8 +3956,19 @@ int	l_opts = CLI$M_OPSIGNAL, l_status, l_wordcnt = 0, l_page = -1;
 	$IFTRACE(l_opts & CLI$M_OPTRACE, "Rev: " __IDENT__ "/" __ARCH__NAME__ ", (built at "
 		__DATE__ " " __TIME__ " with CC " __VERSION__ ")");
 
-	/* argv[0] is a name of the image, a verb is expected in the argv[1] */
-	l_status = __cli$parse(s_verbs, l_opts, argc - 1, argv + 1, (void **) &l_clictx);
+	/*
+	 * The parser expects a verb in the first word, and the command has none: the name of the
+	 * single verb of the grammar takes the place of the image name, see s_verbs[]. A bare
+	 * "skshow" is that verb alone - a single snapshot with every default.
+	 */
+	l_argv[0] = (char *) SKSHOW$K_VERB;
+
+	for (int i = 1; i < argc; i++)
+		l_argv[i] = argv[i];
+
+	l_argv[argc] = NULL;
+
+	l_status = __cli$parse(s_verbs, l_opts, argc, l_argv, (void **) &l_clictx);
 
 	if ( !(1 & l_status) )
 		{

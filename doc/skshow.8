@@ -4,17 +4,17 @@
 .\" MODULE:    doc/skshow.8
 .\" AUTHOR:    StarLet Squad and Ruslan R. Laishev (AKA: BadAss SysMan)
 .\"
-.TH SKSHOW 8 "11 September 2026" "SKSHOW X-03-00" "System Administration Utilities"
+.TH SKSHOW 8 "26 November 2026" "SKSHOW X.04-00" "System Administration Utilities"
 .
 .SH NAME
 skshow \- display the TCP/IP sockets of the system with their counters
 .
 .SH SYNOPSIS
 .B skshow
-.BR SHOW " [" \fIqualifier\fR ...]
+.RI [ qualifier " ...]"
 .br
 .B skshow
-.BR MONITOR " [" \fIqualifier\fR ...]
+.BR /CONTINUOUS " [" \fIqualifier\fR ...]
 .br
 .B skshow
 .BR HELP " [" \fItopic\fR " ...] [" /PAGE " | " /NOPAGE ]
@@ -40,8 +40,12 @@ per socket octet counters and its rows carry
 .B n/a
 as well.
 .PP
-A verb and a qualifier may be abbreviated as long as the abbreviation stays
-unambiguous, and a qualifier is introduced by either a
+There is no verb: a bare
+.B skshow
+reads the sockets once, prints the table and exits, and
+.B /CONTINUOUS
+makes it redraw the table until interrupted.  A qualifier may be abbreviated as
+long as the abbreviation stays unambiguous (/CONT is /CONTINUOUS), and a qualifier is introduced by either a
 .B /
 or a
 .BR -- .
@@ -52,12 +56,13 @@ token, so a selection written that way is refused rather than quietly dropped.
 A qualifier that takes a list accepts either one value or a parenthesised list,
 and a record matches when it matches any element of it.
 .
-.SH VERBS
+.SH COMMANDS
 .TP
-.B SHOW
-Display one snapshot of the socket table and exit.
+.RI [ qualifier " ...]"
+Display one snapshot of the socket table and exit.  The output may be piped or
+redirected.
 .TP
-.B MONITOR
+.BR /CONTINUOUS " [" \fIqualifier\fR ...]
 Redraw the socket table every
 .B /INTERVAL
 seconds until interrupted, or until
@@ -66,15 +71,16 @@ cycles have been performed.
 .TP
 .BI HELP " topic ..."
 Display the on-line help.  Without a topic, the description of the utility and
-the list of what may be asked for; with one, that topic alone: a verb, a
+the list of what may be asked for; with one, that topic alone: a
 qualifier with or without its slash,
 .BR EXAMPLES ", " MESSAGES ,
 or a message of the utility as a subtopic of
 .BR MESSAGES .
 The case of the letters does not matter.  The same text is reached by
 .BR -h ", " --help ", " /HELP " and " /?
-wherever they stand on the command line, and by running the image with no
-argument at all.
+wherever they stand on the command line.  A bare
+.B skshow
+does not display the help: it displays the table.
 .IP
 The text is read out of the help library of the product,
 .IR skshow.hlb ,
@@ -135,7 +141,9 @@ taken.
 .SS Operation
 .TP
 .BR /HIGHLIGHT ", " /NOHIGHLIGHT
-Show in reverse video a row that has moved since the previous refresh: a
+Under
+.BR /CONTINUOUS ,
+show in reverse video a row that has moved since the previous refresh: a
 counter, a queue length or the state has changed, or the socket was not there a
 cycle ago.  On by default, and marks nothing on the first refresh, when there is
 no previous state to differ from.  Escape sequences are emitted only to a
@@ -147,17 +155,30 @@ Ask NETLINK for the byte and packet counters.  On by default;
 leaves NETLINK alone, which is the cheaper way to look at a system carrying a
 great many sockets.
 .TP
+.BR /CONTINUOUS ", " /NOCONTINUOUS
+Redraw the table in place every
+.B /INTERVAL
+seconds until interrupted by Ctrl-C, or until
+.B /COUNT
+cycles have been performed.  Off by default: the sockets are read once, the
+table is printed and
+.B skshow
+exits.  May be abbreviated to
+.BR /CONT .
+.TP
 .BI /INTERVAL= seconds
 The refresh interval of
-.BR MONITOR ,
+.BR /CONTINUOUS ,
 default 3.  Zero turns
-.B MONITOR
-into a single snapshot.
+.B /CONTINUOUS
+into a single snapshot.  Has no effect without
+.BR /CONTINUOUS .
 .TP
 .BI /COUNT= number
 The number of refresh cycles of
-.BR MONITOR ,
-default 0 for unlimited.
+.BR /CONTINUOUS ,
+default 0 for unlimited.  Has no effect without
+.BR /CONTINUOUS .
 .
 .SS Diagnostics
 .TP
@@ -175,8 +196,7 @@ Rewind the log file once it has grown past this size.  Default 0, no limit.
 .SS Help
 .TP
 .BR /PAGE ", " /NOPAGE
-Whether the text of
-.B HELP
+Whether the help text
 stops at the end of every page.  Paged at a terminal by default, never
 elsewhere.
 .
@@ -208,7 +228,16 @@ lists them, and
 .B skshow help messages
 .I name
 says what to do about one.  The command line service adds messages of its own
-about a verb, a qualifier or a value it does not accept.
+about a qualifier or a value it does not accept.  The syntax of the elder
+versions,
+.B skshow show
+and
+.BR "skshow monitor" ,
+is refused: the command line service says
+.B "Too many parameters, surplus token 'show'"
+and the message SYNTAX follows.  Drop the verb; use
+.B /CONTINUOUS
+in place of MONITOR.
 .
 .SH EXIT STATUS
 .TP
@@ -224,7 +253,7 @@ Listening TCP sockets:
 .PP
 .RS
 .nf
-skshow show /state=listen /proto=tcp
+skshow /state=listen /proto=tcp
 .fi
 .RE
 .PP
@@ -232,7 +261,7 @@ Everything a pair of servers is holding on the loopback:
 .PP
 .RS
 .nf
-skshow show /lia=127.0.0.1 /pmask=(nginx,redis)
+skshow /lia=127.0.0.1 /pmask=(nginx,redis)
 .fi
 .RE
 .PP
@@ -240,7 +269,7 @@ Ten refreshes, two seconds apart, without asking NETLINK:
 .PP
 .RS
 .nf
-skshow monitor /interval=2 /count=10 /nocounters
+skshow /cont /interval=2 /count=10 /nocounters
 .fi
 .RE
 .PP
@@ -248,7 +277,7 @@ Watch a busy host, with the moving rows standing out:
 .PP
 .RS
 .nf
-skshow monitor /interval=1
+skshow /cont /interval=1
 .fi
 .RE
 .PP
@@ -256,7 +285,7 @@ IPv6 sockets that are established or waiting out their close:
 .PP
 .RS
 .nf
-skshow monitor /family=inet6 /state=(estab,time_wait)
+skshow /cont /family=inet6 /state=(estab,time_wait)
 .fi
 .RE
 .PP
@@ -264,7 +293,7 @@ Every SSH-related socket, by a pattern, whatever the case of the name:
 .PP
 .RS
 .nf
-skshow show '/pmask=SSH*'
+skshow '/pmask=SSH*'
 .fi
 .RE
 .PP

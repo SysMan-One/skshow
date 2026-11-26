@@ -38,7 +38,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "An existing tag (X-03-00, X.03-01ECO02), equal to __IDENT__ of skshow.c of its tree, to build and release; empty - build only"
+        description: "An existing tag (X.04-00, X.03-01ECO02), equal to __IDENT__ of skshow.c of its tree, to build and release; empty - build only"
         required: false
         default: ""
 
@@ -157,13 +157,13 @@ jobs:
           test -f /usr/share/help/skshow.hlb
           test -f /usr/share/help/ru/skshow_ru.hlb
 
-      # In a container SHOW may warn NOPRIV about the processes it cannot see; it exits 0 all the same
+      # In a container skshow may warn NOPRIV about the processes it cannot see; it exits 0 all the same
       - name: Run it, remove it
         run: |
           out=$(skshow help)
           echo "$out" | head -n 8
           echo "$out" | grep -q 'SKSHOW'
-          out=$(skshow show /nocounters)
+          out=$(skshow /nocounters)
           echo "$out" | tail -n 4
           echo "$out" | grep -q 'record(s) displayed'
           dpkg --purge skshow

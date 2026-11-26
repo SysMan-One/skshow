@@ -1,4 +1,4 @@
-<!-- ident: X-03-00 -->
+<!-- ident: X.04-00 -->
 
 # SKSHOW -- display the TCP/IP sockets of the system
 
@@ -11,13 +11,17 @@ the name of the owning process.
 Format:
 
 ```
-SKSHOW SHOW    [/qualifiers...]      one snapshot, then exit
-SKSHOW MONITOR [/qualifiers...]      redraw until Ctrl-C
-SKSHOW HELP    [topic...]            this help
+SKSHOW [/qualifiers...]              one snapshot, then exit
+SKSHOW /CONTINUOUS [/qualifiers...]  redraw until Ctrl-C
+SKSHOW HELP [topic...]               this help
 ```
 
-A verb and a qualifier may be shortened as long as the short form
-is not ambiguous: MON is MONITOR, /INT is /INTERVAL.  A qualifier
+There is no verb: SKSHOW alone reads the sockets once, prints the
+table and exits.  /CONTINUOUS makes it redraw the table until you
+press Ctrl-C.
+
+A qualifier may be shortened as long as the short form is not
+ambiguous: /CONT is /CONTINUOUS, /INT is /INTERVAL.  A qualifier
 starts with a slash or with two dashes, so /PMASK and --PMASK are
 the same thing.  A single dash is not a qualifier: -lpn=80 is
 refused as an unrecognized token rather than dropped in silence.
@@ -26,8 +30,16 @@ A qualifier that takes a list accepts one value or several in
 parentheses, and a row is shown when it matches any one of them:
 
 ```
-$ skshow show /state=listen
-$ skshow show /state=(listen,estab)
+$ skshow /state=listen
+$ skshow /state=(listen,estab)
+```
+
+One snapshot may be piped or written to a file: nothing but plain
+text is emitted when the standard output is not a terminal.
+
+```
+$ skshow /proto=tcp /state=listen
+$ skshow /pmask=sshd > sockets.txt
 ```
 
 Where the data comes from: the list of sockets is read from
@@ -41,56 +53,14 @@ privilege the file descriptors of a foreign process cannot be
 read, its sockets are shown as ??? and the footer says how many
 processes could not be looked into.
 
-Ask for more with HELP and the name of a verb, of a qualifier, or
-of a section:
+Ask for more with HELP and the name of a qualifier or of a
+section:
 
 ```
-$ skshow help show
+$ skshow help continuous
 $ skshow help pmask
 $ skshow help examples
 $ skshow help messages ivaddr
-```
-
-## SHOW -- display one snapshot and exit
-
-```
-SKSHOW SHOW [/qualifiers...]
-```
-
-Reads the sockets once, prints the table with a footer, and
-exits.  The output may be piped or written to a file: nothing but
-plain text is emitted when the standard output is not a terminal.
-
-SHOW accepts every qualifier described under this topic.
-/INTERVAL and /COUNT are accepted but have no effect: there is
-only one cycle.
-
-```
-$ skshow show /proto=tcp /state=listen
-$ skshow show /pmask=sshd > sockets.txt
-```
-
-## MONITOR -- redraw the table until interrupted
-
-```
-SKSHOW MONITOR [/qualifiers...]
-```
-
-Reads the sockets again and again, every /INTERVAL seconds, and
-redraws the table in place.  Press Ctrl-C to stop; /COUNT stops
-it after that many cycles.
-
-A row that has changed since the previous cycle -- a counter, a
-queue length, the state -- or a socket that was not there a cycle
-ago is shown in reverse video, so that a busy socket stands out
-of a still table.  See /HIGHLIGHT to turn that off.
-
-The whole screen is composed in memory and written in one go, so
-the table does not flicker.
-
-```
-$ skshow monitor /interval=1
-$ skshow monitor /interval=5 /count=12 /nocounters
 ```
 
 ## HELP -- display the on-line help
@@ -101,14 +71,13 @@ SKSHOW HELP [topic [subtopic...]] [/PAGE] [/NOPAGE]
 
 Displays this text.  Without a topic, the description of the
 utility and the list of what may be asked for.  With a topic --
-a verb, a qualifier with or without its slash, EXAMPLES,
-MESSAGES -- that topic alone.  A message of the utility is a
-subtopic of MESSAGES:
+a qualifier with or without its slash, EXAMPLES, MESSAGES --
+that topic alone.  A message of the utility is a subtopic of
+MESSAGES:
 
 ```
 $ skshow help
-$ skshow help monitor
-$ skshow help /pmask
+$ skshow help /continuous
 $ skshow help pmask
 $ skshow help messages noprIV
 ```
@@ -116,8 +85,8 @@ $ skshow help messages noprIV
 The case of the letters does not matter.
 
 The same text is reached by -h, --help, /HELP and /? wherever
-they stand on the command line, and by running the image with no
-argument at all.
+they stand on the command line.  A bare SKSHOW does not display
+the help: it displays the table.
 
 At a terminal the text stops at the end of every page and waits
 for Return; /NOPAGE lets it run through, which is what a pipe
@@ -148,8 +117,8 @@ Shows the sockets bound to this local address.  An IPv4 literal
 the address must agree with /FAMILY when both are given.
 
 ```
-$ skshow show /lia=127.0.0.1
-$ skshow show /lia=::1
+$ skshow /lia=127.0.0.1
+$ skshow /lia=::1
 ```
 
 ## /RIA -- select by the remote IP address
@@ -163,7 +132,7 @@ an IPv6 literal, as for /LIA.  A listening socket has no remote
 address and never matches.
 
 ```
-$ skshow show /ria=10.0.0.5
+$ skshow /ria=10.0.0.5
 ```
 
 ## /LPN -- select by the local port number
@@ -175,8 +144,8 @@ $ skshow show /ria=10.0.0.5
 Shows the sockets bound to this local port, 1 to 65535.
 
 ```
-$ skshow show /lpn=22
-$ skshow monitor /lpn=443 /interval=1
+$ skshow /lpn=22
+$ skshow /cont /lpn=443 /interval=1
 ```
 
 ## /RPN -- select by the remote port number
@@ -188,7 +157,7 @@ $ skshow monitor /lpn=443 /interval=1
 Shows the sockets connected to this remote port, 1 to 65535.
 
 ```
-$ skshow show /rpn=53
+$ skshow /rpn=53
 ```
 
 ## /PROTO -- select by the transport protocol
@@ -203,7 +172,7 @@ Shows the sockets of one protocol only.  ALL, the default, shows
 both.
 
 ```
-$ skshow show /proto=udp
+$ skshow /proto=udp
 ```
 
 ## /FAMILY -- select by the address family
@@ -217,7 +186,7 @@ $ skshow show /proto=udp
 IPV4 and IPV6 are accepted as other names of INET and INET6.
 
 ```
-$ skshow show /family=inet6
+$ skshow /family=inet6
 ```
 
 ## /STATE -- select by the socket state
@@ -240,8 +209,8 @@ UNCONN is what an unconnected UDP socket reports; it is the same
 value as CLOSE.  ALL anywhere in the list drops the criterion.
 
 ```
-$ skshow show /state=listen
-$ skshow monitor /state=(estab,time_wait)
+$ skshow /state=listen
+$ skshow /cont /state=(estab,time_wait)
 ```
 
 ## /PMASK -- select by the name of the owning process
@@ -283,10 +252,10 @@ At most eight masks are taken; the rest are ignored, and the
 message TOOMANY says so.
 
 ```
-$ skshow show /pmask=nginx
-$ skshow show /pmask=(nginx,redis,postgres)
-$ skshow show '/pmask=ssh*'
-$ skshow monitor /pmask=java /interval=2
+$ skshow /pmask=nginx
+$ skshow /pmask=(nginx,redis,postgres)
+$ skshow '/pmask=ssh*'
+$ skshow /cont /pmask=java /interval=2
 ```
 
 ## /COUNTERS -- ask the kernel for the counters
@@ -304,7 +273,7 @@ that carries many thousands of sockets.
 When both are given, the last one wins.
 
 ```
-$ skshow monitor /nocounters /interval=1
+$ skshow /cont /nocounters /interval=1
 ```
 
 ## /HIGHLIGHT -- mark the rows that have moved
@@ -314,7 +283,7 @@ $ skshow monitor /nocounters /interval=1
 /NOHIGHLIGHT
 ```
 
-Under MONITOR, shows in reverse video every row that differs
+Under /CONTINUOUS, shows in reverse video every row that differs
 from what it was at the previous cycle: a counter, a queue
 length or the state has changed, or the socket has just
 appeared.  Nothing is marked at the first cycle, since there is
@@ -322,33 +291,63 @@ nothing to differ from, and nothing is marked when the output is
 not a terminal.  /NOHIGHLIGHT turns the marking off.
 
 ```
-$ skshow monitor /nohighlight
+$ skshow /cont /nohighlight
 ```
 
-## /INTERVAL -- the refresh interval of MONITOR
+## /CONTINUOUS -- redraw the table until interrupted
+
+```
+/CONTINUOUS
+/NOCONTINUOUS     (default)
+```
+
+Reads the sockets again and again, every /INTERVAL seconds, and
+redraws the table in place.  Press Ctrl-C to stop; /COUNT stops
+it after that many cycles.  /CONT is enough to type.
+
+Without /CONTINUOUS the sockets are read once, the table is
+printed, and SKSHOW exits; /INTERVAL and /COUNT then have no
+effect.
+
+A row that has changed since the previous cycle -- a counter, a
+queue length, the state -- or a socket that was not there a cycle
+ago is shown in reverse video, so that a busy socket stands out
+of a still table.  See /HIGHLIGHT to turn that off.
+
+The whole screen is composed in memory and written in one go, so
+the table does not flicker.
+
+```
+$ skshow /cont
+$ skshow /continuous /interval=5 /count=12 /nocounters
+```
+
+## /INTERVAL -- the refresh interval of /CONTINUOUS
 
 ```
 /INTERVAL=seconds     (default 3)
 ```
 
-How long MONITOR waits between two cycles, 0 to 86400 seconds.
-Zero makes MONITOR a single snapshot, the same as SHOW.
+How long /CONTINUOUS waits between two cycles, 0 to 86400
+seconds.  Zero makes it a single snapshot.  Without /CONTINUOUS
+this qualifier has no effect.
 
 ```
-$ skshow monitor /interval=1
+$ skshow /cont /interval=1
 ```
 
-## /COUNT -- the number of cycles of MONITOR
+## /COUNT -- the number of cycles of /CONTINUOUS
 
 ```
 /COUNT=number         (default 0, unlimited)
 ```
 
-How many cycles MONITOR performs before it exits on its own.
-Zero, the default, means until Ctrl-C.
+How many cycles /CONTINUOUS performs before SKSHOW exits on its
+own.  Zero, the default, means until Ctrl-C.  Without /CONTINUOUS
+this qualifier has no effect.
 
 ```
-$ skshow monitor /count=10 /interval=6
+$ skshow /cont /count=10 /interval=6
 ```
 
 ## /TRACE -- diagnostic output
@@ -362,10 +361,10 @@ Makes the utility tell what it is doing: which files are read,
 what NETLINK answers, where the help library was found.  The
 diagnostics go to the standard error, or to the log file when
 /LOGFILE is given, never into the table.  SIGUSR1 toggles the
-tracing of a running MONITOR.
+tracing of a running /CONTINUOUS.
 
 ```
-$ skshow show /trace /pmask=sshd 2> trace.txt
+$ skshow /trace /pmask=sshd 2> trace.txt
 ```
 
 ## /LOGFILE -- send the diagnostics to a file
@@ -379,7 +378,7 @@ utility instead of the standard error.  The table itself always
 goes to the standard output.
 
 ```
-$ skshow monitor /logfile=/tmp/skshow.log /trace
+$ skshow /cont /logfile=/tmp/skshow.log /trace
 ```
 
 ## /LOGSIZE -- limit the size of the log file
@@ -389,11 +388,11 @@ $ skshow monitor /logfile=/tmp/skshow.log /trace
 ```
 
 Rewinds the log file to its beginning once it has grown past
-this many octets, so that a MONITOR left running for days does
+this many octets, so that a /CONTINUOUS left running for days does
 not fill the disk.  Meaningful with /LOGFILE only.
 
 ```
-$ skshow monitor /logfile=/tmp/skshow.log /logsize=1000000
+$ skshow /cont /logfile=/tmp/skshow.log /logsize=1000000
 ```
 
 ## /PAGE -- page the help text
@@ -403,7 +402,7 @@ $ skshow monitor /logfile=/tmp/skshow.log /logsize=1000000
 /NOPAGE
 ```
 
-Governs the HELP verb only.  At a terminal the text stops at the
+Governs the help only.  At a terminal the text stops at the
 end of every page and waits for Return.  /NOPAGE lets it run
 through, which is what a pipe or a redirection wants; there the
 text is never paged whatever is given.
@@ -445,38 +444,38 @@ either -- n/a stands there.
 Listening TCP sockets:
 
 ```
-$ skshow show /state=listen /proto=tcp
+$ skshow /state=listen /proto=tcp
 ```
 
 What a pair of servers is holding on the loopback, whatever the
 case of their names:
 
 ```
-$ skshow show /lia=127.0.0.1 /pmask=(NGINX,redis)
+$ skshow /lia=127.0.0.1 /pmask=(NGINX,redis)
 ```
 
 Every SSH-related socket, by a pattern:
 
 ```
-$ skshow show '/pmask=ssh*'
+$ skshow '/pmask=ssh*'
 ```
 
 Ten refreshes, two seconds apart, without asking NETLINK:
 
 ```
-$ skshow monitor /interval=2 /count=10 /nocounters
+$ skshow /cont /interval=2 /count=10 /nocounters
 ```
 
 Watch a busy host, the moving rows standing out:
 
 ```
-$ skshow monitor /interval=1
+$ skshow /cont /interval=1
 ```
 
 IPv6 sockets that are established or waiting out their close:
 
 ```
-$ skshow monitor /family=inet6 /state=(estab,time_wait)
+$ skshow /cont /family=inet6 /state=(estab,time_wait)
 ```
 
 The help on a qualifier, and the whole help without paging:
@@ -499,23 +498,25 @@ I information, W warning, E error, F fatal -- and IVADDR is the
 name of the message.  Every message goes to the standard error,
 or to the log file when /LOGFILE is given.
 
-The command line service adds messages of its own, about a verb
-or a qualifier it does not know, an abbreviation that fits two
-of them, a value of the wrong kind: read the line, fix the
+The command line service adds messages of its own, about a
+qualifier it does not know, an abbreviation that fits two of
+them, a value of the wrong kind: read the line, fix the
 spelling, and see HELP for the accepted names.
 
 The utility exits with a success status when the command was
 carried out or the help was displayed, and with a failure status
 when the command line was rejected or the run failed.
 
-### AMBIGVERB -- an abbreviation fits several verbs
+### AMBIGQUAL -- an abbreviation fits several qualifiers
 
 ```
-%SKSHOW-E-AMBIGVERB, x is an ambiguous verb name
+%SKSHOW-E-AMBIGQUAL, co is an ambiguous qualifier name
 ```
 
 The topic given to HELP is an abbreviation that fits more than
-one verb.  Give more letters.
+one qualifier: CO is /CONTINUOUS, /COUNTERS and /COUNT.  Give more
+letters.  You see it only when the help library is missing and
+the summary built into the image answers.
 
 ### CONFQUAL -- two qualifiers contradict each other
 
@@ -574,7 +575,7 @@ as root, through sudo, to see every owner.
 ```
 
 HELP was asked for a topic that is not in the library: not a
-verb, not a qualifier, not a section.  Ask for HELP without a
+qualifier, not a section.  Ask for HELP without a
 topic to see what there is.
 
 ### RANGE -- a number is out of range
@@ -594,8 +595,13 @@ a log size 0 and up.
 ```
 
 The command line service has refused the command and has said
-why on the line above: an unknown verb or qualifier, a missing
-value, a lone -name.  Fix that line.
+why on the line above: an unknown qualifier, a missing value, a
+lone -name, a word that is not a qualifier.  Fix that line.
+
+SKSHOW has no verbs any more: a command of the elder syntax,
+"skshow ..." or "skshow /cont ...", is refused with
+"Too many parameters, surplus token 'show'".  Drop SHOW; put
+/CONTINUOUS in place of MONITOR.
 
 ### TOOMANY -- too many values of a list
 
